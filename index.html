@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Press Brake Down Stop Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --panel: #181c26;
+    --panel2: #1e2333;
+    --border: #2a3050;
+    --accent: #f0a500;
+    --accent2: #e05c00;
+    --green: #00c97a;
+    --red: #ff4d4d;
+    --text: #dce3f0;
+    --muted: #6b7a99;
+    --mono: 'Share Tech Mono', monospace;
+    --head: 'Oswald', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--head);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 40px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    width: 100%;
+    background: linear-gradient(135deg, #0d1020 0%, #1a2040 100%);
+    border-bottom: 3px solid var(--accent);
+    padding: 18px 24px 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-icon {
+    width: 52px; height: 52px;
+    background: var(--accent);
+    clip-path: polygon(0 25%, 50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-icon svg { width: 28px; height: 28px; }
+  .header-text h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.08em; color: #fff; line-height: 1; }
+  .header-text p { font-size: 0.72rem; letter-spacing: 0.18em; color: var(--accent); margin-top: 3px; text-transform: uppercase; }
+
+  /* ── MAIN LAYOUT ── */
+  .main { width: 100%; max-width: 900px; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .card-title {
+    font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 16px;
+  }
+
+  /* ── INPUT GRID ── */
+  .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .input-group label {
+    display: block; font-size: 0.68rem; letter-spacing: 0.15em; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .input-group select,
+  .input-group input[type="number"] {
+    width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; color: var(--text);
+    font-family: var(--mono); font-size: 1.1rem; outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  .input-group select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23f0a500' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+  .input-group select:focus,
+  .input-group input[type="number"]:focus { border-color: var(--accent); }
+
+  /* ── ANGLE SLIDER ── */
+  .angle-section { margin-top: 4px; }
+  .angle-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .angle-header label { font-size: 0.68rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; }
+  .angle-display {
+    font-family: var(--mono); font-size: 2.2rem; font-weight: 700;
+    color: var(--accent); letter-spacing: -0.02em; line-height: 1;
+  }
+  .angle-display span { font-size: 1rem; color: var(--muted); }
+
+  input[type="range"] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 8px; border-radius: 4px;
+    background: var(--border); outline: none; cursor: pointer;
+    margin-bottom: 8px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); border: 3px solid var(--bg);
+    box-shadow: 0 0 10px rgba(240,165,0,0.5); cursor: pointer;
+  }
+  .angle-ticks { display: flex; justify-content: space-between; }
+  .angle-ticks span { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); }
+
+  /* ── QUICK ANGLE BUTTONS ── */
+  .quick-angles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .qa-btn {
+    background: var(--panel2); border: 1.5px solid var(--border); border-radius: 6px;
+    padding: 8px 14px; font-family: var(--head); font-size: 0.85rem; font-weight: 600;
+    color: var(--muted); cursor: pointer; transition: all 0.15s; letter-spacing: 0.05em;
+  }
+  .qa-btn:active, .qa-btn.active {
+    background: var(--accent); border-color: var(--accent); color: #000;
+  }
+
+  /* ── RESULT DISPLAY ── */
+  .result-card {
+    background: linear-gradient(135deg, #131926 0%, #1a2040 100%);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 24px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .result-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent2), var(--accent), var(--accent2));
+  }
+  .result-label {
+    font-size: 0.7rem; letter-spacing: 0.25em; color: var(--accent); text-transform: uppercase; margin-bottom: 6px;
+  }
+  .result-value {
+    font-family: var(--mono); font-size: 3.8rem; font-weight: 700;
+    color: #fff; letter-spacing: -0.02em; line-height: 1;
+  }
+  .result-unit { font-size: 1.4rem; color: var(--muted); }
+  .result-sub {
+    display: flex; gap: 20px; margin-top: 14px; padding-top: 14px;
+    border-top: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .result-sub-item { display: flex; flex-direction: column; gap: 2px; }
+  .result-sub-item .sub-label { font-size: 0.6rem; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; }
+  .result-sub-item .sub-val { font-family: var(--mono); font-size: 0.95rem; color: var(--text); }
+
+  /* ── NO DATA NOTICE ── */
+  .no-data {
+    background: rgba(255,77,77,0.08); border: 1px solid rgba(255,77,77,0.3);
+    border-radius: 8px; padding: 12px 16px; font-size: 0.8rem; color: var(--red);
+    letter-spacing: 0.05em; display: none; margin-top: 10px;
+  }
+
+  /* ── REFERENCE TABLE ── */
+  .ref-toggle {
+    width: 100%; background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px; font-family: var(--head); font-size: 0.8rem;
+    font-weight: 600; color: var(--muted); cursor: pointer; letter-spacing: 0.1em;
+    text-transform: uppercase; text-align: left; display: flex; justify-content: space-between;
+    align-items: center; transition: all 0.2s;
+  }
+  .ref-toggle:active { border-color: var(--accent); color: var(--accent); }
+  .ref-arrow { transition: transform 0.2s; }
+  .ref-arrow.open { transform: rotate(180deg); }
+
+  .ref-table-wrap { display: none; margin-top: 12px; overflow-x: auto; }
+  .ref-table-wrap.open { display: block; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.78rem; }
+  th { background: var(--panel2); color: var(--accent); letter-spacing: 0.12em; font-size: 0.62rem;
+       text-transform: uppercase; padding: 10px 10px; text-align: left; border-bottom: 2px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  tr.highlight td { background: rgba(240,165,0,0.07); }
+  .badge {
+    display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.6rem;
+    font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .badge-a36 { background: rgba(0,201,122,0.15); color: var(--green); }
+  .badge-gr50 { background: rgba(240,165,0,0.15); color: var(--accent); }
+  .badge-gr80 { background: rgba(224,92,0,0.2); color: var(--accent2); }
+
+  /* ── DIAGRAM ── */
+  .diagram-wrap { display: flex; justify-content: center; padding: 8px 0; }
+  svg.bend-diagram { overflow: visible; }
+
+  /* ── ADJUST PANEL ── */
+  .adj-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .adj-item {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .adj-label { font-size: 0.6rem; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .adj-val { font-family: var(--mono); font-size: 1.05rem; color: var(--text); }
+  .adj-val.pos { color: var(--green); }
+  .adj-val.neg { color: var(--red); }
+
+  /* ── SPRINGBACK NOTE ── */
+  .springback-note {
+    background: rgba(240,165,0,0.06); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 0.75rem;
+    color: var(--muted); line-height: 1.5; margin-top: 10px;
+  }
+
+  @media (max-width: 480px) {
+    .result-value { font-size: 3rem; }
+    .input-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-icon">
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="12" width="24" height="4" rx="2" fill="#000"/>
+      <path d="M8 16 L14 24 L20 16" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="14" cy="12" r="3" fill="#000"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>PRESS BRAKE CALC</h1>
+    <p>Down Stop Calculator · Molt Mfg</p>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- RESULT -->
+  <div class="result-card" id="resultCard">
+    <div class="result-label">Calculated Down Stop</div>
+    <div class="result-value" id="resultVal">—<span class="result-unit"></span></div>
+    <div id="resultSub" class="result-sub" style="display:none;"></div>
+    <div id="noData" class="no-data">No reference data for this combination. Enter a manual base down stop above.</div>
+  </div>
+
+  <!-- INPUTS -->
+  <div class="card">
+    <div class="card-title">Material &amp; Die Selection</div>
+    <div class="input-grid">
+      <div class="input-group">
+        <label>Thickness</label>
+        <select id="thickness" onchange="calculate()">
+          <option value="">-- Select --</option>
+          <option value="16ga">16 GA (.060")</option>
+          <option value="14ga">14 GA (.075")</option>
+          <option value="12ga">12 GA (.105")</option>
+          <option value="11ga">11 GA (.120")</option>
+          <option value="10ga">10 GA (.135")</option>
+          <option value=".1875">3/16" (.1875")</option>
+          <option value=".208">.208"</option>
+          <option value=".25">1/4" (.250")</option>
+          <option value=".375">3/8" (.375")</option>
+          <option value=".5">1/2" (.500")</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>Die Opening</label>
+        <select id="die" onchange="calculate()">
+          <option value="">-- Select --</option>
+          <option value="0.75">0.75"</option>
+          <option value="1.0">1.0"</option>
+          <option value="1.5">1.5"</option>
+          <option value="2.0">2.0"</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ANGLE -->
+  <div class="card">
+    <div class="card-title">Target Bend Angle</div>
+    <div class="angle-section">
+      <div class="angle-header">
+        <label>Bend Angle</label>
+        <div class="angle-display"><span id="angleVal">90</span><span>°</span></div>
+      </div>
+      <input type="range" id="angleSlider" min="90" max="170" value="90" step="1" oninput="syncAngle(this.value)">
+      <div class="angle-ticks">
+        <span>90°</span><span>100°</span><span>110°</span><span>120°</span><span>130°</span><span>140°</span><span>150°</span><span>160°</span><span>170°</span>
+      </div>
+      <div class="quick-angles">
+        <button class="qa-btn active" onclick="setAngle(90)">90°</button>
+        <button class="qa-btn" onclick="setAngle(100)">100°</button>
+        <button class="qa-btn" onclick="setAngle(110)">110°</button>
+        <button class="qa-btn" onclick="setAngle(120)">120°</button>
+        <button class="qa-btn" onclick="setAngle(135)">135°</button>
+        <button class="qa-btn" onclick="setAngle(150)">150°</button>
+        <button class="qa-btn" onclick="setAngle(160)">160°</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BEND DIAGRAM -->
+  <div class="card" id="diagramCard" style="display:none;">
+    <div class="card-title">Bend Geometry Preview</div>
+    <div class="diagram-wrap">
+      <svg class="bend-diagram" id="bendSVG" viewBox="0 0 320 180" width="320" height="180"></svg>
+    </div>
+    <div class="adj-grid" style="margin-top:14px;" id="adjGrid"></div>
+    <div class="springback-note" id="springbackNote"></div>
+  </div>
+
+  <!-- REFERENCE TABLE TOGGLE -->
+  <button class="ref-toggle" onclick="toggleRef(this)">
+    <span>90° Reference Data Table</span>
+    <span class="ref-arrow" id="refArrow">▼</span>
+  </button>
+  <div class="ref-table-wrap" id="refTableWrap">
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div style="overflow-x:auto;">
+        <table id="refTable">
+          <thead>
+            <tr>
+              <th>Thickness</th>
+              <th>0.75" Die</th>
+              <th>1.0" Die</th>
+              <th>1.5" Die</th>
+              <th>2.0" Die</th>
+            </tr>
+          </thead>
+          <tbody id="refTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end main -->
+
+<script>
+// ─────────────────────────────────────────────
+// COMPLETE BASE MAP — key: "thick|die"
+// measured: averaged from actual bend jobs
+// extrapolated: interpolated from neighboring data
+// ─────────────────────────────────────────────
+const BASE_MAP = {
+  // 16 GA (.060")
+  '16ga|0.75': { avg:3.290, measured:true  },
+  '16ga|1':    { avg:3.250, measured:false },
+  '16ga|1.5':  { avg:3.000, measured:false },
+  '16ga|2':    { avg:2.680, measured:false },
+  // 14 GA (.075")
+  '14ga|0.75': { avg:3.275, measured:true  },
+  '14ga|1':    { avg:3.250, measured:true  },
+  '14ga|1.5':  { avg:3.000, measured:true  },
+  '14ga|2':    { avg:2.840, measured:false },
+  // 12 GA (.105")
+  '12ga|0.75': { avg:3.275, measured:true  },
+  '12ga|1':    { avg:3.236, measured:false },
+  '12ga|1.5':  { avg:3.087, measured:true  },
+  '12ga|2':    { avg:2.884, measured:false },
+  // 11 GA (.120")
+  '11ga|0.75': { avg:3.270, measured:false },
+  '11ga|1':    { avg:3.265, measured:true  },
+  '11ga|1.5':  { avg:2.970, measured:true  },
+  '11ga|2':    { avg:2.680, measured:true  },
+  // 10 GA (.135")
+  '10ga|0.75': { avg:3.275, measured:false },
+  '10ga|1':    { avg:3.282, measured:false },
+  '10ga|1.5':  { avg:3.009, measured:true  },
+  '10ga|2':    { avg:2.681, measured:false },
+  // 3/16" (.1875")
+  '.1875|0.75':{ avg:3.308, measured:false },
+  '.1875|1':   { avg:3.340, measured:true  },
+  '.1875|1.5': { avg:3.170, measured:true  },
+  '.1875|2':   { avg:2.685, measured:true  },
+  // .208"
+  '.208|0.75': { avg:3.275, measured:false },
+  '.208|1':    { avg:3.358, measured:false },
+  '.208|1.5':  { avg:3.108, measured:true  },
+  '.208|2':    { avg:2.778, measured:false },
+  // 1/4" (.250")
+  '.25|0.75':  { avg:3.335, measured:false },
+  '.25|1':     { avg:3.395, measured:true  },
+  '.25|1.5':   { avg:3.195, measured:true  },
+  '.25|2':     { avg:2.968, measured:true  },
+  // 3/8" (.375")
+  '.375|0.75': { avg:3.275, measured:false },
+  '.375|1':    { avg:3.395, measured:false },
+  '.375|1.5':  { avg:3.195, measured:false },
+  '.375|2':    { avg:3.004, measured:true  },
+  // 1/2" (.500")
+  '.5|0.75':   { avg:3.275, measured:false },
+  '.5|1':      { avg:3.395, measured:false },
+  '.5|1.5':    { avg:3.195, measured:false },
+  '.5|2':      { avg:3.153, measured:true  },
+};
+
+// ─────────────────────────────────────────────
+// CALCULATION
+// Down stop adjustment from 90° to any angle:
+//   When angle > 90° (obtuse / open bend): ram travels LESS → stop is HIGHER
+//   When angle < 90° (acute / closed bend): ram travels MORE → stop is LOWER
+//
+// Press brake geometry: the ram displacement from 90° is proportional to
+//   half the die opening × (tan(90° - targetAngle/2) - tan(45°))
+// i.e.: Δ = (V/2) × (cot(targetAngle/2) - 1)   where V = die opening
+// ─────────────────────────────────────────────
+function calcStop(base90, dieIn, angleDeg) {
+  const halfAngle = angleDeg / 2;
+  const halfRad   = halfAngle * Math.PI / 180;
+  // cot(halfAngle) - cot(45°) = cos/sin - 1
+  const delta = (dieIn / 2) * (Math.cos(halfRad) / Math.sin(halfRad) - 1);
+  // Acute bend (< 90°): delta is positive → stop decreases (punch goes further down)
+  // Obtuse bend (> 90°): delta is negative → stop increases (punch doesn't go as far)
+  return base90 - delta;
+}
+
+let currentAngle = 90;
+
+function syncAngle(val) {
+  currentAngle = parseInt(val);
+  document.getElementById('angleVal').textContent = currentAngle;
+  document.getElementById('angleSlider').value = currentAngle;
+  // Highlight quick buttons
+  document.querySelectorAll('.qa-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.textContent) === currentAngle);
+  });
+  calculate();
+}
+
+function setAngle(a) {
+  syncAngle(a);
+}
+
+function calculate() {
+  const thick = document.getElementById('thickness').value;
+  const die   = parseFloat(document.getElementById('die').value);
+
+  const resultValEl = document.getElementById('resultVal');
+  const noDataEl    = document.getElementById('noData');
+  const resultSubEl = document.getElementById('resultSub');
+  const diagCard    = document.getElementById('diagramCard');
+
+  let base90 = null;
+  let isMeasured = false;
+
+  if (thick && !isNaN(die)) {
+    // Normalize die key: 1.0→"1", 2.0→"2", 0.75→"0.75", 1.5→"1.5"
+    const dieKey = (die % 1 === 0) ? String(die | 0) : String(die);
+    const key = thick + '|' + dieKey;
+    if (BASE_MAP[key]) base90 = BASE_MAP[key].avg;
+    if (BASE_MAP[key]) isMeasured = BASE_MAP[key].measured;
+  }
+
+  if (!base90) {
+    resultValEl.innerHTML     = '—';
+    noDataEl.style.display    = (!thick || isNaN(die)) ? 'none' : 'block';
+    resultSubEl.style.display = 'none';
+    diagCard.style.display    = 'none';
+    return;
+  }
+
+  noDataEl.style.display = 'none';
+
+  const result = calcStop(base90, die, currentAngle);
+  const delta  = result - base90;
+
+  resultValEl.innerHTML = result.toFixed(3) + '<span class="result-unit">"</span>';
+
+  const deltaStr = (delta >= 0 ? '+' : '') + delta.toFixed(3) + '"';
+  const fromNow  = currentAngle === 90
+    ? 'Base 90° setting'
+    : `Ram travels ${delta.toFixed(3)}" less`;
+
+  resultSubEl.style.display = 'flex';
+  resultSubEl.innerHTML = `
+    <div class="result-sub-item">
+      <span class="sub-label">90° Base</span>
+      <span class="sub-val">${base90.toFixed(3)}"</span>
+    </div>
+    <div class="result-sub-item">
+      <span class="sub-label">Adjustment</span>
+      <span class="sub-val" style="color:${delta < 0 ? 'var(--red)' : delta > 0 ? 'var(--green)' : 'var(--muted)'}">${deltaStr}</span>
+    </div>
+    <div class="result-sub-item">
+      <span class="sub-label">Die</span>
+      <span class="sub-val">${die}"</span>
+    </div>
+    <div class="result-sub-item">
+      <span class="sub-label">Action</span>
+      <span class="sub-val">${fromNow}</span>
+    </div>`;
+
+  // Update diagram
+  diagCard.style.display = 'block';
+  drawDiagram(currentAngle, die);
+  updateAdjPanel(delta, currentAngle);
+}
+
+// ─────────────────────────────────────────────
+// SVG BEND DIAGRAM
+// ─────────────────────────────────────────────
+function drawDiagram(angle, die) {
+  const svg = document.getElementById('bendSVG');
+  svg.innerHTML = '';
+  const ns = 'http://www.w3.org/2000/svg';
+
+  // Correct press brake orientation:
+  //   Apex (bend point) at BOTTOM-CENTER
+  //   Arms splay UP and OUTWARD from apex (V opens upward)
+  //   Punch comes DOWN from above into the open top of the V
+  //   Die opening indicator at the BOTTOM below the apex
+  const cx = 160, apexY = 118, len = 90;
+  const halfAngleRad = (angle / 2) * Math.PI / 180;
+
+  // Arms go UP and outward from apex
+  const lx = cx - Math.sin(halfAngleRad) * len;
+  const ly = apexY - Math.cos(halfAngleRad) * len;  // subtract = go up
+  const rx = cx + Math.sin(halfAngleRad) * len;
+  const ry = apexY - Math.cos(halfAngleRad) * len;
+
+  function el(tag, attrs, text) {
+    const e = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (text !== undefined) e.textContent = text;
+    svg.appendChild(e); return e;
+  }
+
+  // Defs: downward-pointing arrowhead for punch
+  const defs = el('defs', {});
+  const mk = document.createElementNS(ns, 'marker');
+  mk.setAttribute('id','arr'); mk.setAttribute('markerWidth','10'); mk.setAttribute('markerHeight','10');
+  mk.setAttribute('refX','5'); mk.setAttribute('refY','0'); mk.setAttribute('orient','auto');
+  const tri = document.createElementNS(ns, 'polygon');
+  tri.setAttribute('points','0,0 10,0 5,8'); tri.setAttribute('fill','#f0a500');
+  mk.appendChild(tri); defs.appendChild(mk);
+
+  // Sheet arms — up and outward
+  el('line', { x1:cx, y1:apexY, x2:lx, y2:ly, stroke:'#f0a500', 'stroke-width':'5', 'stroke-linecap':'round' });
+  el('line', { x1:cx, y1:apexY, x2:rx, y2:ry, stroke:'#f0a500', 'stroke-width':'5', 'stroke-linecap':'round' });
+
+  // Apex dot
+  el('circle', { cx, cy:apexY, r:'5', fill:'#e05c00' });
+
+  // Angle arc — inside the V near the apex
+  const arcR = 28;
+  const leftDir  = Math.atan2(ly - apexY, lx - cx);
+  const rightDir = Math.atan2(ry - apexY, rx - cx);
+  const arcX1 = cx + arcR * Math.cos(leftDir);
+  const arcY1 = apexY + arcR * Math.sin(leftDir);
+  const arcX2 = cx + arcR * Math.cos(rightDir);
+  const arcY2 = apexY + arcR * Math.sin(rightDir);
+  el('path', { d:`M ${arcX1} ${arcY1} A ${arcR} ${arcR} 0 0 1 ${arcX2} ${arcY2}`,
+    stroke:'#ffffff', 'stroke-width':'1.5', fill:'none', 'stroke-dasharray':'4 3', opacity:'0.6' });
+
+  // Angle label — at the top centre between the two arm tips
+  const labelX = cx;
+  const labelY = Math.min(ly, ry) - 10;
+  el('text', {
+    x: labelX, y: labelY,
+    'text-anchor':'middle', fill:'#fff', 'font-size':'15',
+    'font-family':'Share Tech Mono,monospace', 'font-weight':'700'
+  }, angle + '°');
+
+  // Punch indicator — small vertical line at apex, no arrowhead
+  const punchTopY = apexY - 32;
+  const punchBotY = apexY - 8;
+  el('line', { x1:cx, y1:punchTopY, x2:cx, y2:punchBotY,
+    stroke:'#f0a500', 'stroke-width':'2.5', 'stroke-linecap':'round' });
+  el('text', { x:cx, y:punchTopY - 5, 'text-anchor':'middle', fill:'#f0a500', 'font-size':'9',
+    'font-family':'Share Tech Mono,monospace', 'font-weight':'700' }, 'PUNCH');
+
+  // Die opening — below the apex
+  const dieY = apexY + 20;
+  const dieHalf = (die / 2) * 78;
+  el('line', { x1:cx - dieHalf, y1:dieY, x2:cx + dieHalf, y2:dieY,
+    stroke:'#4a5570', 'stroke-width':'3', 'stroke-linecap':'round' });
+  el('line', { x1:cx - dieHalf, y1:dieY - 5, x2:cx - dieHalf, y2:dieY + 5, stroke:'#4a5570', 'stroke-width':'2' });
+  el('line', { x1:cx + dieHalf, y1:dieY - 5, x2:cx + dieHalf, y2:dieY + 5, stroke:'#4a5570', 'stroke-width':'2' });
+  el('text', { x:cx, y:dieY + 15, 'text-anchor':'middle', fill:'#6b7a99',
+    'font-size':'10', 'font-family':'Share Tech Mono,monospace' }, die + '" die opening');
+}
+
+function updateAdjPanel(delta, angle) {
+  const adj  = document.getElementById('adjGrid');
+  const note = document.getElementById('springbackNote');
+
+  const direction = delta > 0
+    ? `<span class="adj-val pos">↑ Raise stop ${delta.toFixed(3)}"</span>`
+    : `<span class="adj-val" style="color:var(--muted)">No change — 90° base</span>`;
+
+  adj.innerHTML = `
+    <div class="adj-item">
+      <div class="adj-label">Stop Direction</div>
+      ${direction}
+    </div>
+    <div class="adj-item">
+      <div class="adj-label">Bend Type</div>
+      <div class="adj-val">${angle > 90 ? 'Obtuse / Open' : '90° Square'}</div>
+    </div>`;
+
+  note.textContent = angle > 90
+    ? '⚠ Obtuse bends have less springback. Verify angle with a protractor on first piece.'
+    : '⚠ Standard 90° bend. Use your baseline reference stop.';
+}
+
+// ─────────────────────────────────────────────
+// REFERENCE TABLE BUILD
+// ─────────────────────────────────────────────
+function buildRefTable() {
+  const tbody = document.getElementById('refTbody');
+  const thickOrder = ['16ga','14ga','12ga','11ga','10ga','.1875','.208','.25','.375','.5'];
+  const thickLabel = {
+    '16ga':'16 GA', '14ga':'14 GA', '12ga':'12 GA', '11ga':'11 GA', '10ga':'10 GA',
+    '.1875':'3/16"', '.208':'.208"', '.25':'1/4"', '.375':'3/8"', '.5':'1/2"'
+  };
+  const dies = [0.75, 1.0, 1.5, 2.0];
+  let rows = '';
+  for (let i = 0; i < thickOrder.length; i++) {
+    const t = thickOrder[i];
+    const rowBg = i % 2 === 0 ? '' : 'alt';
+    rows += `<tr class="${rowBg}"><td style="font-weight:700;color:var(--text);">${thickLabel[t]}</td>`;
+    for (const d of dies) {
+      const dieKey = (d % 1 === 0) ? String(d | 0) : String(d);
+      const key = t + '|' + dieKey;
+      const entry = BASE_MAP[key];
+      if (entry) {
+        const color  = entry.measured ? 'var(--green)' : 'var(--accent)';
+        const marker = entry.measured ? '' : '<span style="font-size:0.7rem;opacity:0.7"> ~</span>';
+        rows += `<td style="color:${color};font-weight:${entry.measured?'700':'400'};">${entry.avg.toFixed(3)}"${marker}</td>`;
+      } else {
+        rows += `<td style="color:var(--border);">—</td>`;
+      }
+    }
+    rows += '</tr>';
+  }
+  // Legend row
+  rows += `<tr><td colspan="5" style="padding-top:12px;font-size:0.7rem;color:var(--muted);border-top:1px solid var(--border);">
+    <span style="color:var(--green);">■ Measured average</span>
+    &nbsp;&nbsp;
+    <span style="color:var(--accent);">■ ~ Extrapolated</span>
+  </td></tr>`;
+  tbody.innerHTML = rows;
+}
+
+function toggleRef(btn) {
+  const wrap = document.getElementById('refTableWrap');
+  const arrow = document.getElementById('refArrow');
+  const open = wrap.classList.toggle('open');
+  arrow.classList.toggle('open', open);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+buildRefTable();
+calculate();
+</script>
+</body>
+</html>
