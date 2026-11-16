@@ -245,7 +245,7 @@
     <div class="result-label">Calculated Down Stop</div>
     <div class="result-value" id="resultVal">—<span class="result-unit"></span></div>
     <div id="resultSub" class="result-sub" style="display:none;"></div>
-    <div id="noData" class="no-data">No reference data for this combination. Enter a manual base down stop above.</div>
+    <div id="noData" class="no-data">Select a thickness and die opening.</div>
   </div>
 
   <!-- INPUTS -->
@@ -256,6 +256,8 @@
         <label>Thickness</label>
         <select id="thickness" onchange="calculate()">
           <option value="">-- Select --</option>
+          <option value="20ga">20 GA (.036")</option>
+          <option value="18ga">18 GA (.048")</option>
           <option value="16ga">16 GA (.060")</option>
           <option value="14ga">14 GA (.075")</option>
           <option value="12ga">12 GA (.105")</option>
@@ -278,6 +280,11 @@
           <option value="2.0">2.0"</option>
         </select>
       </div>
+    </div>
+    <div class="input-group" style="margin-top:12px;">
+      <label>Measured Thickness (optional)</label>
+      <input type="number" id="measThick" step="0.001" min="0" inputmode="decimal" placeholder="Leave blank to use nominal" oninput="calculate()"
+        style="width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:1rem;padding:12px 14px;">
     </div>
 
   </div>
@@ -344,62 +351,88 @@
 
 <script>
 // ─────────────────────────────────────────────
-// COMPLETE BASE MAP — key: "thick|die"
-// measured: averaged from actual bend jobs
-// extrapolated: interpolated from neighboring data
+// MODEL-BASED 90° DOWN STOP
+//   stop = DIE_CONST[die] + SLOPE * max(thickness, die / FLOOR_RATIO)
+// Each die's constant is the average of (stop - SLOPE*thickness) over every
+// good A36 90° reading logged on that die, so one reading on a die improves
+// every gauge on that die. Where a gauge/die cell has its own readings, the
+// plain average of those readings is shown instead (green).
 // ─────────────────────────────────────────────
-const BASE_MAP = {
-  // 16 GA (.060")
-  '16ga|0.75': { avg:3.290, measured:true  },
-  '16ga|1':    { avg:3.250, measured:false },
-  '16ga|1.5':  { avg:3.000, measured:false },
-  '16ga|2':    { avg:2.680, measured:false },
-  // 14 GA (.075")
-  '14ga|0.75': { avg:3.275, measured:true  },
-  '14ga|1':    { avg:3.250, measured:true  },
-  '14ga|1.5':  { avg:3.000, measured:true  },
-  '14ga|2':    { avg:2.840, measured:false },
-  // 12 GA (.105")
-  '12ga|0.75': { avg:3.275, measured:true  },
-  '12ga|1':    { avg:3.236, measured:false },
-  '12ga|1.5':  { avg:3.087, measured:true  },
-  '12ga|2':    { avg:2.884, measured:false },
-  // 11 GA (.120")
-  '11ga|0.75': { avg:3.270, measured:false },
-  '11ga|1':    { avg:3.265, measured:true  },
-  '11ga|1.5':  { avg:2.970, measured:true  },
-  '11ga|2':    { avg:2.680, measured:true  },
-  // 10 GA (.135")
-  '10ga|0.75': { avg:3.275, measured:false },
-  '10ga|1':    { avg:3.282, measured:false },
-  '10ga|1.5':  { avg:3.009, measured:true  },
-  '10ga|2':    { avg:2.681, measured:false },
-  // 3/16" (.1875")
-  '.1875|0.75':{ avg:3.308, measured:false },
-  '.1875|1':   { avg:3.340, measured:true  },
-  '.1875|1.5': { avg:3.170, measured:true  },
-  '.1875|2':   { avg:2.685, measured:true  },
-  // .208"
-  '.208|0.75': { avg:3.275, measured:false },
-  '.208|1':    { avg:3.358, measured:false },
-  '.208|1.5':  { avg:3.108, measured:true  },
-  '.208|2':    { avg:2.778, measured:false },
-  // 1/4" (.250")
-  '.25|0.75':  { avg:3.335, measured:false },
-  '.25|1':     { avg:3.395, measured:true  },
-  '.25|1.5':   { avg:3.195, measured:true  },
-  '.25|2':     { avg:2.968, measured:true  },
-  // 3/8" (.375")
-  '.375|0.75': { avg:3.275, measured:false },
-  '.375|1':    { avg:3.395, measured:false },
-  '.375|1.5':  { avg:3.195, measured:false },
-  '.375|2':    { avg:3.004, measured:true  },
-  // 1/2" (.500")
-  '.5|0.75':   { avg:3.275, measured:false },
-  '.5|1':      { avg:3.395, measured:false },
-  '.5|1.5':    { avg:3.195, measured:false },
-  '.5|2':      { avg:3.153, measured:true  },
-};
+const SLOPE = Math.SQRT2;   // geometry of a 90° air bend; the log fits 1.44
+const FLOOR_RATIO = 12;     // thin-sheet floor: thickness never taken below die/12
+const THICK = { '20ga':.036,'18ga':.048,'16ga':.060,'14ga':.075,'12ga':.105,'11ga':.120,'10ga':.135,
+                '.1875':.1875,'.208':.208,'.25':.25,'.375':.375,'.5':.5 };
+
+// Good A36 90° readings: [thickness key, die opening, bottom stop]
+// Left out as bad data: 45° bend logged as 90 (1/4 @ 2.0 = 3.25), likely mislabeled
+// readings (12 GA @ 1.5 = 3.193, 3/16 @ 1.5 = 3.35), entry error (11 GA @ 1.5 = 3.946),
+// rows with no die opening, and GR50/GR80 material.
+const LOG = [
+  ['14ga', 0.75, 3.275],
+  ['14ga', 1, 3.275],
+  ['14ga', 1, 3.225],
+  ['14ga', 1.5, 3],
+  ['12ga', 0.75, 3.275],
+  ['12ga', 1.5, 2.98],
+  ['11ga', 1, 3.265],
+  ['11ga', 1.5, 2.97],
+  ['11ga', 2, 2.68],
+  ['10ga', 1.5, 2.975],
+  ['10ga', 1.5, 3],
+  ['10ga', 1.5, 3.015],
+  ['10ga', 1.5, 2.95],
+  ['10ga', 1.5, 3.07],
+  ['10ga', 1.5, 3.045],
+  ['.208', 1.5, 3.08],
+  ['.208', 1.5, 3.18],
+  ['.208', 1.5, 3.065],
+  ['.1875', 1, 3.32],
+  ['.1875', 1.5, 3.05],
+  ['.1875', 2, 2.69],
+  ['.1875', 2, 2.675],
+  ['.1875', 2, 2.69],
+  ['.1875', 1, 3.36],
+  ['.1875', 1.5, 3.11],
+  ['.25', 1, 3.395],
+  ['.25', 1.5, 3.195],
+  ['.25', 2, 2.855],
+  ['.375', 2, 2.955],
+  ['.375', 2, 2.975],
+  ['.375', 2, 3.052],
+  ['.375', 2, 3.035],
+  ['.5', 2, 3.153],
+  ['16ga', 0.75, 3.29],
+];
+
+const effT = (t, die) => Math.max(t, die / FLOOR_RATIO);
+
+const DIE_CONST = {};   // die -> constant
+const DIE_RANGE = {};   // die -> [thinnest, thickest] logged
+const CELL = {};        // "thick|die" -> [stops...]
+for (const [tk, die, stop] of LOG) {
+  (CELL[tk + '|' + die] = CELL[tk + '|' + die] || []).push(stop);
+  const r = (DIE_CONST[die] = DIE_CONST[die] || { sum: 0, n: 0 });
+  r.sum += stop - SLOPE * effT(THICK[tk], die); r.n++;
+  const g = DIE_RANGE[die] = DIE_RANGE[die] || [Infinity, 0];
+  g[0] = Math.min(g[0], THICK[tk]); g[1] = Math.max(g[1], THICK[tk]);
+}
+for (const d in DIE_CONST) DIE_CONST[d] = DIE_CONST[d].sum / DIE_CONST[d].n;
+
+// Returns { val, tier, n }  tier: 'measured' | 'model' | 'outside'
+// tNow = thickness actually used (defaults to nominal for the gauge)
+function getBase(tk, die, tNow) {
+  const tNom = THICK[tk];
+  if (tNow == null) tNow = tNom;
+  const readings = CELL[tk + '|' + die];
+  if (readings) {
+    const avg = readings.reduce((a, b) => a + b, 0) / readings.length;
+    return { val: avg + SLOPE * (effT(tNow, die) - effT(tNom, die)), tier: 'measured', n: readings.length };
+  }
+  if (DIE_CONST[die] == null) return null;
+  const val = DIE_CONST[die] + SLOPE * effT(tNow, die);
+  const [lo, hi] = DIE_RANGE[die];
+  return { val, tier: (tNow < lo - 1e-9 || tNow > hi + 1e-9) ? 'outside' : 'model', n: 0 };
+}
 
 // ─────────────────────────────────────────────
 // CALCULATION
@@ -448,14 +481,12 @@ function calculate() {
   const diagCard    = document.getElementById('diagramCard');
 
   let base90 = null;
-  let isMeasured = false;
+  let info = null;
 
   if (thick && !isNaN(die)) {
-    // Normalize die key: 1.0→"1", 2.0→"2", 0.75→"0.75", 1.5→"1.5"
-    const dieKey = (die % 1 === 0) ? String(die | 0) : String(die);
-    const key = thick + '|' + dieKey;
-    if (BASE_MAP[key]) base90 = BASE_MAP[key].avg;
-    if (BASE_MAP[key]) isMeasured = BASE_MAP[key].measured;
+    const mt = parseFloat(document.getElementById('measThick').value);
+    info = getBase(thick, die, (mt > 0) ? mt : null);
+    if (info) base90 = info.val;
   }
 
   if (!base90) {
@@ -491,6 +522,12 @@ function calculate() {
     <div class="result-sub-item">
       <span class="sub-label">Die</span>
       <span class="sub-val">${die}"</span>
+    </div>
+    <div class="result-sub-item">
+      <span class="sub-label">Based on</span>
+      <span class="sub-val" style="color:${info.tier==='measured'?'var(--green)':info.tier==='outside'?'var(--red)':'var(--accent)'}">${
+        info.tier==='measured' ? 'Your ' + info.n + (info.n===1?' reading':' readings')
+        : info.tier==='outside' ? 'Estimate - test bend first' : 'Model estimate'}</span>
     </div>
     <div class="result-sub-item">
       <span class="sub-label">Action</span>
@@ -615,9 +652,9 @@ function updateAdjPanel(delta, angle) {
 // ─────────────────────────────────────────────
 function buildRefTable() {
   const tbody = document.getElementById('refTbody');
-  const thickOrder = ['16ga','14ga','12ga','11ga','10ga','.1875','.208','.25','.375','.5'];
+  const thickOrder = ['20ga','18ga','16ga','14ga','12ga','11ga','10ga','.1875','.208','.25','.375','.5'];
   const thickLabel = {
-    '16ga':'16 GA', '14ga':'14 GA', '12ga':'12 GA', '11ga':'11 GA', '10ga':'10 GA',
+    '20ga':'20 GA', '18ga':'18 GA', '16ga':'16 GA', '14ga':'14 GA', '12ga':'12 GA', '11ga':'11 GA', '10ga':'10 GA',
     '.1875':'3/16"', '.208':'.208"', '.25':'1/4"', '.375':'3/8"', '.5':'1/2"'
   };
   const dies = [0.75, 1.0, 1.5, 2.0];
@@ -629,14 +666,10 @@ function buildRefTable() {
     for (const d of dies) {
       const dieKey = (d % 1 === 0) ? String(d | 0) : String(d);
       const key = t + '|' + dieKey;
-      const entry = BASE_MAP[key];
-      if (entry) {
-        const color  = entry.measured ? 'var(--green)' : 'var(--accent)';
-        const marker = entry.measured ? '' : '<span style="font-size:0.7rem;opacity:0.7"> ~</span>';
-        rows += `<td style="color:${color};font-weight:${entry.measured?'700':'400'};">${entry.avg.toFixed(3)}"${marker}</td>`;
-      } else {
-        rows += `<td style="color:var(--border);">—</td>`;
-      }
+      const entry = getBase(t, d);
+      const color  = entry.tier === 'measured' ? 'var(--green)' : entry.tier === 'outside' ? 'var(--red)' : 'var(--accent)';
+      const marker = entry.tier === 'measured' ? '' : '<span style="font-size:0.7rem;opacity:0.7"> ~</span>';
+      rows += `<td style="color:${color};font-weight:${entry.tier==='measured'?'700':'400'};">${entry.val.toFixed(3)}"${marker}</td>`;
     }
     rows += '</tr>';
   }
@@ -644,7 +677,9 @@ function buildRefTable() {
   rows += `<tr><td colspan="5" style="padding-top:12px;font-size:0.7rem;color:var(--muted);border-top:1px solid var(--border);">
     <span style="color:var(--green);">■ Measured average</span>
     &nbsp;&nbsp;
-    <span style="color:var(--accent);">■ ~ Extrapolated</span>
+    <span style="color:var(--accent);">■ ~ Model estimate</span>
+    &nbsp;&nbsp;
+    <span style="color:var(--red);">■ ~ Outside logged range - test bend first</span>
   </td></tr>`;
   tbody.innerHTML = rows;
 }
